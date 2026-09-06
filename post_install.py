@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Post-install configuration for Claude Code devcontainer.
+"""Post-install configuration for Claude Code + OpenCode devcontainer.
 
 Runs on container creation to set up:
 - Onboarding bypass (when CLAUDE_CODE_OAUTH_TOKEN is set)
 - Claude settings (bypassPermissions mode)
+- OpenCode defaults (unrestricted permissions, no autoupdate/share)
 - Tmux configuration (200k history, mouse support)
 - Directory ownership fixes for mounted volumes
 """
@@ -118,6 +119,65 @@ def setup_claude_settings():
     )
 
 
+def setup_opencode_config():
+    """Configure OpenCode with sandbox-friendly defaults.
+
+    Mirrors the Claude bypassPermissions setup: allow all actions without
+    approval prompts, since the container already provides filesystem
+    isolation. Denies access to .devcontainer/ to match
+    .claude/settings.json, as container-side config edits would execute
+    on the host during rebuild.
+
+    Merges with any existing user config instead of overwriting it.
+    Disables autoupdate (use `devc upgrade`) and sharing by default.
+    """
+    config_dir = Path.home() / ".config" / "opencode"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_file = config_dir / "opencode.json"
+
+    # Patterns blocking .devcontainer access, whether opencode runs from
+    # /workspace or a subdirectory.
+    devcontainer_denies = [
+        ".devcontainer/**",
+        "**/.devcontainer/**",
+    ]
+
+    def with_devcontainer_denies(existing: dict | str | None) -> dict:
+        """Return a permission rule allowing everything except .devcontainer."""
+        merged: dict[str, str] = {"*": "allow"}
+        if isinstance(existing, dict):
+            merged.update(existing)
+        # Last matching rule wins, so denies go last.
+        for pattern in devcontainer_denies:
+            merged[pattern] = "deny"
+        return merged
+
+    config: dict = {}
+    if config_file.exists():
+        with contextlib.suppress(json.JSONDecodeError):
+            loaded = json.loads(config_file.read_text())
+            if isinstance(loaded, dict):
+                config = loaded
+
+    config.setdefault("$schema", "https://opencode.ai/config.json")
+    # Pin updates to `devc upgrade` so the image version stays reproducible.
+    config.setdefault("autoupdate", False)
+    config.setdefault("share", "disabled")
+
+    if "permission" not in config or isinstance(config["permission"], str):
+        # String form ("allow") can't express denies; expand to object form.
+        config["permission"] = {"*": "allow"}
+    if not isinstance(config["permission"], dict):
+        config["permission"] = {"*": "allow"}
+    permissions = config["permission"]
+
+    for tool in ("read", "edit", "glob", "grep"):
+        permissions[tool] = with_devcontainer_denies(permissions.get(tool))
+
+    config_file.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+    print(f"[post_install] OpenCode config written: {config_file}", file=sys.stderr)
+
+
 def setup_tmux_config():
     """Configure tmux with 200k history, mouse support, and vi keys."""
     tmux_conf = Path.home() / ".tmux.conf"
@@ -172,6 +232,8 @@ def fix_directory_ownership():
 
     dirs_to_fix = [
         Path.home() / ".claude",
+        Path.home() / ".config" / "opencode",
+        Path.home() / ".local" / "share" / "opencode",
         Path("/commandhistory"),
         Path.home() / ".config" / "gh",
     ]
@@ -303,6 +365,7 @@ def main():
 
     setup_onboarding_bypass()
     setup_claude_settings()
+    setup_opencode_config()
     setup_tmux_config()
     fix_directory_ownership()
     setup_global_gitignore()

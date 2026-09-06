@@ -55,10 +55,10 @@ RUN ARCH=$(dpkg --print-architecture) && \
   curl -fsSL "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-${FZF_ARCH}.tar.gz" | tar -xz -C /usr/local/bin
 
 # Create directories and set ownership (combined for fewer layers)
-RUN mkdir -p /commandhistory /workspace /home/vscode/.claude /opt && \
+RUN mkdir -p /commandhistory /workspace /home/vscode/.claude /home/vscode/.config/opencode /home/vscode/.local/share/opencode /opt && \
   touch /commandhistory/.bash_history && \
   touch /commandhistory/.zsh_history && \
-  chown -R vscode:vscode /commandhistory /workspace /home/vscode/.claude /opt
+  chown -R vscode:vscode /commandhistory /workspace /home/vscode/.claude /home/vscode/.config /home/vscode/.local /opt
 
 # Set environment variables
 ENV DEVCONTAINER=true
@@ -79,6 +79,15 @@ RUN curl -fsSL https://claude.ai/install.sh | bash && \
   claude plugin marketplace add anthropics/skills && \
   claude plugin marketplace add trailofbits/skills && \
   claude plugin marketplace add trailofbits/skills-curated
+
+# Install opencode and link it onto PATH. The installer hardcodes
+# $HOME/.opencode/bin (no install-dir override), so symlink the binary
+# into ~/.local/bin, which is already on PATH. --no-modify-path keeps the
+# installer from appending PATH exports to shell rc files.
+RUN curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path && \
+  mkdir -p /home/vscode/.local/bin && \
+  ln -sf /home/vscode/.opencode/bin/opencode /home/vscode/.local/bin/opencode && \
+  test -x /home/vscode/.local/bin/opencode
 
 # Install Python 3.13 via uv (fast binary download, not source compilation)
 RUN uv python install 3.13 --default

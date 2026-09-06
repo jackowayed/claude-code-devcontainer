@@ -1,0 +1,25 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "read": {
+      "*": "allow",
+      ".devcontainer/**": "deny",
+      "**/.devcontainer/**": "deny"
+    },
+    "edit": {
+      "*": "allow",
+      ".devcontainer/**": "deny",
+      "**/.devcontainer/**": "deny"
+    },
+    "glob": {
+      "*": "allow",
+      ".devcontainer/**": "deny",
+      "**/.devcontainer/**": "deny"
+    },
+    "grep": {
+      "*": "allow",
+      ".devcontainer/**": "deny",
+      "**/.devcontainer/**": "deny"
+    }
+  }
+}
