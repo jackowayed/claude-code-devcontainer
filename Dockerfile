@@ -120,5 +120,6 @@ COPY --chown=vscode:vscode .zshrc /home/vscode/.zshrc.custom
 # Append custom zshrc to the main one
 RUN echo 'source ~/.zshrc.custom' >> /home/vscode/.zshrc
 
-# Copy post_install script
+# Copy post_install and opencode server auto-start scripts
 COPY --chown=vscode:vscode post_install.py /opt/post_install.py
+COPY --chown=vscode:vscode start_opencode_server.sh /opt/start_opencode_server.sh

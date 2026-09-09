@@ -146,6 +146,21 @@ devc rebuild
 
 Alternatively, run `opencode auth login` (or `/connect` in the TUI) inside the container. Credentials persist in the per-project `opencode-data` volume (`~/.local/share/opencode/auth.json`), alongside `~/.config/opencode` settings, so they survive `devc rebuild`.
 
+### opencode server
+
+`opencode serve` (headless HTTP API + OpenAPI spec) starts automatically on every container start via `postStartCommand` and listens on `0.0.0.0:4096`. Port `4096` is forwarded to the host (`forwardPorts` + `portsAttributes` in `devcontainer.json`), so from the host or the IDE you can reach:
+
+- API base: `http://localhost:4096`
+- OpenAPI spec: `http://localhost:4096/doc`
+
+Details:
+
+- Startup script: `start_opencode_server.sh` (shipped to `/opt/` by the Dockerfile, re-runs idempotently on each start). Logs go to `~/.local/share/opencode/serve.log` inside the container.
+- Re-run manually inside the container: `bash /opt/start_opencode_server.sh` or `devc exec bash /opt/start_opencode_server.sh`.
+- The port is fixed at `4096` (opencode's default) to match `forwardPorts` — no env setup needed. Running several project containers is fine: each gets its own forwarded host port automatically.
+- Protect with basic auth: `export OPENCODE_SERVER_PASSWORD=...` (and optionally `OPENCODE_SERVER_USERNAME`, default `opencode`) on the host, then `devc rebuild`. Both are forwarded via `remoteEnv`.
+- Prefer the browser UI instead? Run `opencode web --hostname 0.0.0.0 --port 4096` inside the container (stop the `serve` instance first if the port is taken). To attach a TUI to it: `opencode attach http://localhost:4096`.
+
 ## CLI Helper Commands
 
 ```

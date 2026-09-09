@@ -73,10 +73,22 @@
     "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY:}",
     "GOOGLE_GENERATIVE_AI_API_KEY": "${localEnv:GOOGLE_GENERATIVE_AI_API_KEY:}",
     "OPENROUTER_API_KEY": "${localEnv:OPENROUTER_API_KEY:}",
-    "OPENCODE_API_KEY": "${localEnv:OPENCODE_API_KEY:}"
+    "OPENCODE_API_KEY": "${localEnv:OPENCODE_API_KEY:}",
+    "OPENCODE_SERVER_PASSWORD": "${localEnv:OPENCODE_SERVER_PASSWORD:}",
+    "OPENCODE_SERVER_USERNAME": "${localEnv:OPENCODE_SERVER_USERNAME:}"
   },
   "initializeCommand": "test -f \"$HOME/.gitconfig\" || touch \"$HOME/.gitconfig\"",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
-  "postCreateCommand": "uv run --no-project /opt/post_install.py"
+  "forwardPorts": [
+    4096
+  ],
+  "portsAttributes": {
+    "4096": {
+      "label": "opencode server",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "uv run --no-project /opt/post_install.py",
+  "postStartCommand": "bash /opt/start_opencode_server.sh"
 }
