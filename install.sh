@@ -102,6 +102,55 @@ get_workspace_folder() {
   echo "${1:-$(pwd)}"
 }
 
+# Returns success if dir contains a devcontainer config.
+has_devcontainer_config() {
+  local dir="$1"
+  [[ -f "$dir/.devcontainer/devcontainer.json" ]] && return 0
+  [[ -f "$dir/.devcontainer.json" ]] && return 0
+  return 1
+}
+
+# Resolve the workspace folder for `shell`/`exec` when invoked from a
+# subdirectory. If pwd has no devcontainer config, fall back one level up.
+# Sets globals: RESOLVED_WORKSPACE (host path) and RESOLVED_RELDIR
+# (basename of the original dir relative to the workspace, "" if none).
+resolve_shell_exec_workspace() {
+  local orig_pwd
+  orig_pwd="$(pwd)"
+  local parent_dir
+  parent_dir="$(dirname "$orig_pwd")"
+
+  if has_devcontainer_config "$orig_pwd"; then
+    RESOLVED_WORKSPACE="$orig_pwd"
+    RESOLVED_RELDIR=""
+  elif [[ "$parent_dir" != "$orig_pwd" ]] && has_devcontainer_config "$parent_dir"; then
+    RESOLVED_WORKSPACE="$parent_dir"
+    RESOLVED_RELDIR="$(basename "$orig_pwd")"
+  else
+    RESOLVED_WORKSPACE="$orig_pwd"
+    RESOLVED_RELDIR=""
+  fi
+}
+
+# Remote (in-container) workspace folder, e.g. /workspace. Read from the
+# workspace's devcontainer.json so custom `workspaceFolder` values keep working.
+get_remote_workspace_folder() {
+  local workspace="$1"
+  local json=""
+
+  if [[ -f "$workspace/.devcontainer/devcontainer.json" ]]; then
+    json="$workspace/.devcontainer/devcontainer.json"
+  elif [[ -f "$workspace/.devcontainer.json" ]]; then
+    json="$workspace/.devcontainer.json"
+  fi
+
+  if [[ -n "$json" ]]; then
+    jq -r '.workspaceFolder // "/workspace"' "$json" 2>/dev/null || echo "/workspace"
+  else
+    echo "/workspace"
+  fi
+}
+
 # Docker rejects a bind mount whose source is missing, so the .git mounts break
 # container creation in a non-repo workspace. `devc template` restores them.
 strip_git_mounts_if_not_repo() {
@@ -303,21 +352,38 @@ cmd_down() {
 }
 
 cmd_shell() {
-  local workspace_folder
-  workspace_folder="$(get_workspace_folder)"
+  resolve_shell_exec_workspace
+  local workspace_folder="$RESOLVED_WORKSPACE"
 
   check_devcontainer_cli
-  log_info "Opening shell in devcontainer..."
 
-  devcontainer exec --workspace-folder "$workspace_folder" zsh
+  if [[ -z "$RESOLVED_RELDIR" ]]; then
+    log_info "Opening shell in devcontainer..."
+    devcontainer exec --workspace-folder "$workspace_folder" zsh
+  else
+    local remote_base container_dir
+    remote_base="$(get_remote_workspace_folder "$workspace_folder")"
+    container_dir="$remote_base/$RESOLVED_RELDIR"
+    log_info "No devcontainer config here, using parent $workspace_folder (starting in $RESOLVED_RELDIR)..."
+    devcontainer exec --workspace-folder "$workspace_folder" bash -c 'cd "$0" && exec zsh' "$container_dir"
+  fi
 }
 
 cmd_exec() {
-  local workspace_folder
-  workspace_folder="$(get_workspace_folder)"
+  resolve_shell_exec_workspace
+  local workspace_folder="$RESOLVED_WORKSPACE"
 
   check_devcontainer_cli
-  devcontainer exec --workspace-folder "$workspace_folder" "$@"
+
+  if [[ -z "$RESOLVED_RELDIR" ]]; then
+    devcontainer exec --workspace-folder "$workspace_folder" "$@"
+  else
+    local remote_base container_dir
+    remote_base="$(get_remote_workspace_folder "$workspace_folder")"
+    container_dir="$remote_base/$RESOLVED_RELDIR"
+    log_info "No devcontainer config here, using parent $workspace_folder (running in $RESOLVED_RELDIR)..."
+    devcontainer exec --workspace-folder "$workspace_folder" bash -c 'cd "$0" && exec "$@"' "$container_dir" "$@"
+  fi
 }
 
 cmd_upgrade() {
