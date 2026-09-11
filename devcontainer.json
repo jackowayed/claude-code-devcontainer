@@ -45,6 +45,7 @@
     "source=devc-${localWorkspaceFolderBasename}-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
     "source=devc-${localWorkspaceFolderBasename}-opencode-config-${devcontainerId},target=/home/vscode/.config/opencode,type=volume",
     "source=devc-${localWorkspaceFolderBasename}-opencode-data-${devcontainerId},target=/home/vscode/.local/share/opencode,type=volume",
+    "source=devc-${localWorkspaceFolderBasename}-opencode-state-${devcontainerId},target=/home/vscode/.local/state/opencode,type=volume",
     "source=devc-${localWorkspaceFolderBasename}-gh-${devcontainerId},target=/home/vscode/.config/gh,type=volume",
     "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,readonly",
     "source=${localWorkspaceFolder}/.devcontainer,target=/workspace/.devcontainer,type=bind,readonly",
@@ -80,6 +81,7 @@
   "initializeCommand": "test -f \"$HOME/.gitconfig\" || touch \"$HOME/.gitconfig\"",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
+  "appPort": ["4096:4096"],
   "forwardPorts": [
     4096
   ],

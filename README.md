@@ -294,7 +294,7 @@ sudo iptables -A OUTPUT -j DROP
 | Base | Ubuntu 24.04, Node.js 24, Python 3.13 + uv, zsh |
 | User | `vscode` (passwordless sudo), working dir `/workspace` |
 | Tools | `rg`, `fd`, `tmux`, `fzf`, `delta`, `iptables`, `ipset` |
-| Volumes (survive rebuilds) | Command history (`/commandhistory`), Claude config (`~/.claude`), OpenCode config (`~/.config/opencode`), OpenCode data/auth (`~/.local/share/opencode`), GitHub CLI auth (`~/.config/gh`) |
+| Volumes (survive rebuilds) | Command history (`/commandhistory`), Claude config (`~/.claude`), OpenCode config (`~/.config/opencode`), OpenCode data/auth (`~/.local/share/opencode`), OpenCode TUI state (`~/.local/state/opencode`), GitHub CLI auth (`~/.config/gh`) |
 | Host mounts | `~/.gitconfig`, `.devcontainer/`, `.git/config`, `.git/hooks/` (all read-only) |
 | Auto-configured | `bypassPermissions` mode (via `post_install.py`), opencode defaults (`permission: allow` except `.devcontainer/`, `autoupdate: false`, `share: disabled`), skills from [anthropics/skills](https://github.com/anthropics/skills) + [trailofbits/skills](https://github.com/trailofbits/skills) + [trailofbits/skills-curated](https://github.com/trailofbits/skills-curated), git-delta |
 

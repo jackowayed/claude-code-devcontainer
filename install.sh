@@ -200,6 +200,7 @@ extract_mounts_to_file() {
         (contains("target=/home/vscode/.claude,") | not) and
         (contains("target=/home/vscode/.config/opencode,") | not) and
         (contains("target=/home/vscode/.local/share/opencode,") | not) and
+        (contains("target=/home/vscode/.local/state/opencode,") | not) and
         (contains("target=/home/vscode/.config/gh,") | not) and
         (contains("target=/home/vscode/.gitconfig,") | not) and
         (contains("target=/workspace/.devcontainer,") | not)

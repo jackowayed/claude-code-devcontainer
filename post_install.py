@@ -234,6 +234,7 @@ def fix_directory_ownership():
         Path.home() / ".claude",
         Path.home() / ".config" / "opencode",
         Path.home() / ".local" / "share" / "opencode",
+        Path.home() / ".local" / "state" / "opencode",
         Path("/commandhistory"),
         Path.home() / ".config" / "gh",
     ]

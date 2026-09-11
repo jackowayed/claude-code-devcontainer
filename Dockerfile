@@ -55,7 +55,7 @@ RUN ARCH=$(dpkg --print-architecture) && \
   curl -fsSL "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-${FZF_ARCH}.tar.gz" | tar -xz -C /usr/local/bin
 
 # Create directories and set ownership (combined for fewer layers)
-RUN mkdir -p /commandhistory /workspace /home/vscode/.claude /home/vscode/.config/opencode /home/vscode/.local/share/opencode /opt && \
+RUN mkdir -p /commandhistory /workspace /home/vscode/.claude /home/vscode/.config/opencode /home/vscode/.local/share/opencode /home/vscode/.local/state/opencode /opt && \
   touch /commandhistory/.bash_history && \
   touch /commandhistory/.zsh_history && \
   chown -R vscode:vscode /commandhistory /workspace /home/vscode/.claude /home/vscode/.config /home/vscode/.local /opt
