@@ -1,16 +1,16 @@
-# Claude Code + OpenCode in a devcontainer
+# Claude Code + OpenCode + Codex in a devcontainer
 
-A containerized development environment for running Claude Code with `bypassPermissions` enabled and opencode with unrestricted permissions. Built at [Trail of Bits](https://www.trailofbits.com/) for security audit workflows.
+A containerized development environment for running Claude Code with `bypassPermissions` enabled, opencode with unrestricted permissions, and Codex with approvals/sandboxing disabled. Built at [Trail of Bits](https://www.trailofbits.com/) for security audit workflows.
 
 ## Why Use This?
 
-Running Claude with `bypassPermissions` (or opencode unrestricted) on your host machine is risky—it can execute any command without confirmation. This devcontainer provides **filesystem isolation**, so an unrestricted agent reaches only your project directory and a disposable container, not the rest of your host.
+Running Claude with `bypassPermissions` (or opencode / Codex unrestricted) on your host machine is risky—it can execute any command without confirmation. This devcontainer provides **filesystem isolation**, so an unrestricted agent reaches only your project directory and a disposable container, not the rest of your host.
 
 **Designed for:**
 
 - **Security audits**: Review client code without exposing your host
 - **Untrusted repositories**: Explore unknown codebases safely
-- **Experimental work**: Let Claude or opencode modify code freely in isolation
+- **Experimental work**: Let Claude, opencode, or Codex modify code freely in isolation
 - **Multi-repo engagements**: Work on multiple related repositories
 
 ## Prerequisites
@@ -113,7 +113,7 @@ devc shell      # Opens shell in container
 git clone <client-repo-1>
 git clone <client-repo-2>
 cd client-repo-1
-claude            # Ready to work (or: opencode)
+claude            # Ready to work (or: opencode, codex)
 ```
 
 ## Token-Based Auth (Headless)
@@ -146,6 +146,21 @@ devc rebuild
 
 Alternatively, run `opencode auth login` (or `/connect` in the TUI) inside the container. Credentials persist in the per-project `opencode-data` volume (`~/.local/share/opencode/auth.json`), alongside `~/.config/opencode` settings, so they survive `devc rebuild`.
 
+### codex auth
+
+Codex needs no onboarding handshake. It picks up provider keys forwarded via `remoteEnv`:
+
+- `OPENAI_API_KEY` (API-key auth), `CODEX_API_KEY` (single non-interactive `codex exec` runs), `CODEX_ACCESS_TOKEN` (ChatGPT/token automation)
+
+```bash
+export OPENAI_API_KEY=sk-...
+devc rebuild
+```
+
+Alternatively, run `codex login` inside the container (ChatGPT OAuth or API key). `post_install.py` pins `cli_auth_credentials_store = "file"`, so credentials persist as `~/.codex/auth.json` in the per-project `codex` volume and survive `devc rebuild`. There is no OS keyring in the container, so keep the `file` store.
+
+Codex runs unrestricted by default here (`approval_policy = "never"`, `sandbox_mode = "danger-full-access"`, network enabled, `/workspace` pre-trusted) since the container provides isolation — matching upstream guidance to use `danger-full-access` inside Docker. If you prefer guardrails, edit `~/.codex/config.toml` in the container or pass flags per run (e.g. `codex --sandbox workspace-write`).
+
 ### opencode server
 
 `opencode serve` (headless HTTP API + OpenAPI spec) starts automatically on every container start via `postStartCommand` and listens on `0.0.0.0:4096`. Port `4096` is forwarded to the host (`forwardPorts` + `portsAttributes` in `devcontainer.json`), so from the host or the IDE you can reach:
@@ -171,7 +186,7 @@ devc destroy [-f]   Remove container, volumes, and image for current project
 devc down           Stop the container
 devc shell          Open zsh shell in container
 devc exec CMD       Execute command inside the container
-devc upgrade        Upgrade Claude Code and opencode in the container
+devc upgrade        Upgrade Claude Code, opencode, and codex in the container
 devc mount SRC DST  Add a bind mount (host → container)
 devc sync [project] [--trusted] Sync Claude Code sessions from devcontainers to host
 devc cp SRC DST     Copy a path from the container to the host
@@ -197,7 +212,7 @@ Devcontainers are auto-discovered via Docker labels — no need to know containe
 
 > **Security note:** this copies container-authored data onto your host, so it prompts first (`--trusted` skips it). Only `*.jsonl` logs are copied, always under a `-devcontainer-<project>` key, so a container cannot plant files elsewhere in `~/.claude/projects/`. The transcripts are still container-authored text that a later host session will read.
 
-opencode sessions need no sync: they persist in the per-project `opencode-data` volume (`~/.local/share/opencode`) and survive `devc rebuild`. Use `devc destroy` to remove them with the project.
+opencode sessions need no sync: they persist in the per-project `opencode-data` volume (`~/.local/share/opencode`) and survive `devc rebuild`. Codex sessions/auth persist the same way in the per-project `codex` volume (`~/.codex`). Use `devc destroy` to remove them with the project.
 
 ## File Sharing
 
@@ -230,7 +245,7 @@ By default, containers have full outbound network access. For stricter security,
 - Auditing software with telemetry or phone-home behavior
 - Maximum isolation for highly sensitive reviews
 
-### Example: Claude + OpenCode + GitHub + Package Registries
+### Example: Claude + OpenCode + Codex + GitHub + Package Registries
 
 Run this inside the container (`devc shell`). The allowlist lives in an `ipset` that the
 `iptables` rule references by name, so refreshing it does not mean re-adding rules.
@@ -272,7 +287,7 @@ sudo iptables -A OUTPUT -j DROP
 ## Threat Model
 
 **Protects against:**
-- Claude or opencode running unrestricted during a session.
+- Claude, opencode, or Codex running unrestricted during a session.
 - Direct access to your SSH key material and other credentials
 - Unrestricted, direct access to the whole filesystem
 - Cross-engagement leakage
@@ -283,7 +298,7 @@ sudo iptables -A OUTPUT -j DROP
 - **Deferred escape.** Container-planted code can get executed on the host, when the user performs some action on the host. Planting files under shared `.git` folder is an example escape path.
 - **VS Code "Reopen in Container".** The command runs an extension host *inside* the container wired to your editor over RPC, and container code can drive host-only editor commands (`terminal.newLocal` then `sendSequence`) to run shell commands on your host. This is [Microsoft's design](https://github.com/microsoft/vscode-remote-release/issues/6608#issuecomment-1112960548), not a bug here ([how it works](https://blog.theredguild.org/leveraging-vscode-internals-to-escape-containers/)).
 - **Network rules overwrite.** Container has `NET_ADMIN` and passwordless sudo, its user can change the iptables rules dynamically.
-- **Exfiltration of in-container credentials.** Claude, opencode/provider, GitHub, and other tokens provided to container are simply accessible inside it.
+- **Exfiltration of in-container credentials.** Claude, opencode/provider, Codex, GitHub, and other tokens provided to container are simply accessible inside it.
 
 **Also not isolated:** forwarded SSH agent (container code can authenticate as you; keys stay on the host), `~/.gitconfig` (read-only). The Docker socket is not mounted.
 
@@ -294,13 +309,13 @@ sudo iptables -A OUTPUT -j DROP
 | Base | Ubuntu 24.04, Node.js 24, Python 3.13 + uv, zsh |
 | User | `vscode` (passwordless sudo), working dir `/workspace` |
 | Tools | `rg`, `fd`, `tmux`, `fzf`, `delta`, `iptables`, `ipset` |
-| Volumes (survive rebuilds) | Command history (`/commandhistory`), Claude config (`~/.claude`), OpenCode config (`~/.config/opencode`), OpenCode data/auth (`~/.local/share/opencode`), OpenCode TUI state (`~/.local/state/opencode`), GitHub CLI auth (`~/.config/gh`) |
+| Volumes (survive rebuilds) | Command history (`/commandhistory`), Claude config (`~/.claude`), OpenCode config (`~/.config/opencode`), OpenCode data/auth (`~/.local/share/opencode`), OpenCode TUI state (`~/.local/state/opencode`), Codex config/auth/sessions (`~/.codex`), GitHub CLI auth (`~/.config/gh`) |
 | Host mounts | `~/.gitconfig`, `.devcontainer/`, `.git/config`, `.git/hooks/` (all read-only) |
-| Auto-configured | `bypassPermissions` mode (via `post_install.py`), opencode defaults (`permission: allow` except `.devcontainer/`, `autoupdate: false`, `share: disabled`), skills from [anthropics/skills](https://github.com/anthropics/skills) + [trailofbits/skills](https://github.com/trailofbits/skills) + [trailofbits/skills-curated](https://github.com/trailofbits/skills-curated), git-delta |
+| Auto-configured | `bypassPermissions` mode (via `post_install.py`), opencode defaults (`permission: allow` except `.devcontainer/`, `autoupdate: false`, `share: disabled`), Codex defaults (`approval_policy: never`, `sandbox_mode: danger-full-access`, file-based auth, `/workspace` pre-trusted), skills from [anthropics/skills](https://github.com/anthropics/skills) + [trailofbits/skills](https://github.com/trailofbits/skills) + [trailofbits/skills-curated](https://github.com/trailofbits/skills-curated), git-delta |
 
-Volumes are stored outside the container, so your shell history, Claude settings, opencode settings/auth, and `gh` login persist even after `devc rebuild`. Host `~/.gitconfig` is mounted read-only for git identity.
+Volumes are stored outside the container, so your shell history, Claude settings, opencode settings/auth, Codex config/auth/sessions, and `gh` login persist even after `devc rebuild`. Host `~/.gitconfig` is mounted read-only for git identity.
 
-The container ships common development tooling so you can do all your work inside it, not just run Claude or opencode. The intended workflow is: clone a repository, start the container, and stay in it. If you need extra runtimes, add them to the Dockerfile for repeat use or install them ad-hoc with `devc exec`.
+The container ships common development tooling so you can do all your work inside it, not just run Claude, opencode, or Codex. The intended workflow is: clone a repository, start the container, and stay in it. If you need extra runtimes, add them to the Dockerfile for repeat use or install them ad-hoc with `devc exec`.
 
 ## Troubleshooting
 

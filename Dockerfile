@@ -55,7 +55,7 @@ RUN ARCH=$(dpkg --print-architecture) && \
   curl -fsSL "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-${FZF_ARCH}.tar.gz" | tar -xz -C /usr/local/bin
 
 # Create directories and set ownership (combined for fewer layers)
-RUN mkdir -p /commandhistory /workspace /home/vscode/.claude /home/vscode/.config/opencode /home/vscode/.local/share/opencode /home/vscode/.local/state/opencode /opt && \
+RUN mkdir -p /commandhistory /workspace /home/vscode/.claude /home/vscode/.config/opencode /home/vscode/.local/share/opencode /home/vscode/.local/state/opencode /home/vscode/.codex /opt && \
   touch /commandhistory/.bash_history && \
   touch /commandhistory/.zsh_history && \
   chown -R vscode:vscode /commandhistory /workspace /home/vscode/.claude /home/vscode/.config /home/vscode/.local /opt
@@ -88,6 +88,14 @@ RUN curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path && \
   mkdir -p /home/vscode/.local/bin && \
   ln -sf /home/vscode/.opencode/bin/opencode /home/vscode/.local/bin/opencode && \
   test -x /home/vscode/.local/bin/opencode
+
+# Install Codex CLI via npm (Node is already on PATH via fnm).
+# Pinned for reproducible builds; refresh inside the container with
+# `devc upgrade` (npm install -g @openai/codex@latest).
+# renovate: datasource=npm depName=@openai/codex
+ARG CODEX_VERSION=0.154.0
+RUN npm install -g "@openai/codex@${CODEX_VERSION}" && \
+  codex --version
 
 # Install Python 3.13 via uv (fast binary download, not source compilation)
 RUN uv python install 3.13 --default

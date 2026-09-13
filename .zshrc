@@ -1,7 +1,7 @@
 # shellcheck shell=bash
-# Zsh configuration for Claude Code + OpenCode devcontainer
+# Zsh configuration for Claude Code + OpenCode + Codex devcontainer
 
-# Add Claude Code and opencode to PATH
+# Add Claude Code, opencode, and codex to PATH
 export PATH="$HOME/.local/bin:$PATH"
 
 # fnm (Fast Node Manager)
@@ -34,6 +34,7 @@ alias fd=fdfind
 alias sg=ast-grep
 alias claude-yolo='claude --dangerously-skip-permissions'
 alias opencode-yolo='opencode --auto'
+alias codex-yolo='codex --dangerously-bypass-approvals-and-sandbox'
 alias ll='ls -lah --color=auto'
 alias la='ls -A --color=auto'
 alias l='ls -CF --color=auto'

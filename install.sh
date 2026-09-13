@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Claude Code + OpenCode Devcontainer CLI Helper
+# Claude Code + OpenCode + Codex Devcontainer CLI Helper
 # Provides the `devc` command for managing devcontainers
 
 # Resolve symlinks to get actual script location
@@ -36,7 +36,7 @@ Commands:
     update              Update devc to the latest version
     template [dir]      Copy devcontainer template to directory (default: current)
     exec <cmd>          Execute a command in the running container
-    upgrade             Upgrade Claude Code and opencode to latest versions
+    upgrade             Upgrade Claude Code, opencode, and codex to latest versions
     mount <host> <cont> Add a mount to the devcontainer (recreates container)
     sync [project] [--trusted]  Sync Claude sessions from devcontainers to host
     cp <cont> <host>    Copy files/directories from container to host
@@ -51,7 +51,7 @@ Examples:
     devc self-install           # Install devc to PATH
     devc update                 # Update to latest version
     devc exec ls -la            # Run command in container
-    devc upgrade                # Upgrade Claude Code and opencode to latest
+    devc upgrade                # Upgrade Claude Code, opencode, and codex to latest
     devc mount ~/data /data     # Add mount to container
     devc sync                   # Sync Claude sessions from all devcontainers
     devc sync crypto            # Sync Claude sessions only matching devcontainer
@@ -201,6 +201,7 @@ extract_mounts_to_file() {
         (contains("target=/home/vscode/.config/opencode,") | not) and
         (contains("target=/home/vscode/.local/share/opencode,") | not) and
         (contains("target=/home/vscode/.local/state/opencode,") | not) and
+        (contains("target=/home/vscode/.codex,") | not) and
         (contains("target=/home/vscode/.config/gh,") | not) and
         (contains("target=/home/vscode/.gitconfig,") | not) and
         (contains("target=/workspace/.devcontainer,") | not)
@@ -398,7 +399,10 @@ cmd_upgrade() {
   log_info "Upgrading opencode..."
   devcontainer exec --workspace-folder "$workspace_folder" opencode upgrade
 
-  log_success "Claude Code and opencode upgraded"
+  log_info "Upgrading codex..."
+  devcontainer exec --workspace-folder "$workspace_folder" npm install -g @openai/codex@latest
+
+  log_success "Claude Code, opencode, and codex upgraded"
 }
 
 cmd_mount() {

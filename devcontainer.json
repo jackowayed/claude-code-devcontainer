@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
-  "name": "Claude Code + OpenCode Sandbox",
+  "name": "Claude Code + OpenCode + Codex Sandbox",
   "build": {
     "dockerfile": "Dockerfile",
     "args": {
@@ -20,7 +20,8 @@
     "vscode": {
       "extensions": [
         "anthropic.claude-code",
-        "sst-dev.opencode"
+        "sst-dev.opencode",
+        "openai.chatgpt"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "zsh",
@@ -46,6 +47,7 @@
     "source=devc-${localWorkspaceFolderBasename}-opencode-config-${devcontainerId},target=/home/vscode/.config/opencode,type=volume",
     "source=devc-${localWorkspaceFolderBasename}-opencode-data-${devcontainerId},target=/home/vscode/.local/share/opencode,type=volume",
     "source=devc-${localWorkspaceFolderBasename}-opencode-state-${devcontainerId},target=/home/vscode/.local/state/opencode,type=volume",
+    "source=devc-${localWorkspaceFolderBasename}-codex-${devcontainerId},target=/home/vscode/.codex,type=volume",
     "source=devc-${localWorkspaceFolderBasename}-gh-${devcontainerId},target=/home/vscode/.config/gh,type=volume",
     "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,readonly",
     "source=${localWorkspaceFolder}/.devcontainer,target=/workspace/.devcontainer,type=bind,readonly",
@@ -76,7 +78,9 @@
     "OPENROUTER_API_KEY": "${localEnv:OPENROUTER_API_KEY:}",
     "OPENCODE_API_KEY": "${localEnv:OPENCODE_API_KEY:}",
     "OPENCODE_SERVER_PASSWORD": "${localEnv:OPENCODE_SERVER_PASSWORD:}",
-    "OPENCODE_SERVER_USERNAME": "${localEnv:OPENCODE_SERVER_USERNAME:}"
+    "OPENCODE_SERVER_USERNAME": "${localEnv:OPENCODE_SERVER_USERNAME:}",
+    "CODEX_API_KEY": "${localEnv:CODEX_API_KEY:}",
+    "CODEX_ACCESS_TOKEN": "${localEnv:CODEX_ACCESS_TOKEN:}"
   },
   "initializeCommand": "test -f \"$HOME/.gitconfig\" || touch \"$HOME/.gitconfig\"",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
