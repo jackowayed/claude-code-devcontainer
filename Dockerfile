@@ -58,7 +58,7 @@ RUN ARCH=$(dpkg --print-architecture) && \
 RUN mkdir -p /commandhistory /workspace /home/vscode/.claude /home/vscode/.config/opencode /home/vscode/.local/share/opencode /home/vscode/.local/state/opencode /home/vscode/.codex /opt && \
   touch /commandhistory/.bash_history && \
   touch /commandhistory/.zsh_history && \
-  chown -R vscode:vscode /commandhistory /workspace /home/vscode/.claude /home/vscode/.config /home/vscode/.local /opt
+  chown -R vscode:vscode /commandhistory /workspace /home/vscode/.claude /home/vscode/.config /home/vscode/.local /home/vscode/.codex /opt
 
 # Set environment variables
 ENV DEVCONTAINER=true

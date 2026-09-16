@@ -18,6 +18,54 @@ import sys
 from pathlib import Path
 
 
+def _ensure_dir_writable(dir_path: Path) -> bool:
+    """Ensure a config dir exists and is writable by the current user.
+
+    Fresh Docker volumes for mounts like ~/.codex are root-owned by default
+    (and the Dockerfile predating the .codex mount missed its chown), so a
+    plain mkdir/write fails with PermissionError for the vscode user. Try to
+    repair ownership via passwordless sudo; return False instead of raising
+    so callers can skip gracefully rather than aborting post-install.
+    """
+    try:
+        dir_path.mkdir(parents=True, exist_ok=True)
+    except PermissionError as e:
+        print(
+            f"[post_install] Warning: cannot create {dir_path}: {e} — skipping",
+            file=sys.stderr,
+        )
+        return False
+
+    try:
+        if dir_path.stat().st_uid != os.getuid():
+            subprocess.run(
+                [
+                    "sudo",
+                    "chown",
+                    "-R",
+                    f"{os.getuid()}:{os.getgid()}",
+                    str(dir_path),
+                ],
+                check=True,
+                capture_output=True,
+            )
+            print(f"[post_install] Fixed ownership: {dir_path}", file=sys.stderr)
+    except (PermissionError, subprocess.CalledProcessError, OSError) as e:
+        print(
+            f"[post_install] Warning: Could not fix ownership of {dir_path}: {e}",
+            file=sys.stderr,
+        )
+        return False
+
+    if not os.access(dir_path, os.W_OK):
+        print(
+            f"[post_install] Warning: {dir_path} is not writable — skipping",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
+
 def setup_onboarding_bypass():
     """Bypass the interactive onboarding wizard when CLAUDE_CODE_OAUTH_TOKEN is set.
 
@@ -207,13 +255,21 @@ def setup_codex_config():
         tomllib = None  # type: ignore[assignment]
 
     codex_dir = Path.home() / ".codex"
-    codex_dir.mkdir(parents=True, exist_ok=True)
+    if not _ensure_dir_writable(codex_dir):
+        return
     config_file = codex_dir / "config.toml"
 
     existing_text = ""
     existed = config_file.exists()
     if existed:
-        existing_text = config_file.read_text(encoding="utf-8")
+        try:
+            existing_text = config_file.read_text(encoding="utf-8")
+        except PermissionError as e:
+            print(
+                f"[post_install] Warning: cannot read {config_file}: {e} — skipping",
+                file=sys.stderr,
+            )
+            return
 
     existing: dict = {}
     reset_invalid = False
@@ -224,7 +280,14 @@ def setup_codex_config():
                 existing = parsed
         except Exception as e:
             backup = config_file.with_suffix(".toml.bak")
-            backup.write_text(existing_text, encoding="utf-8")
+            try:
+                backup.write_text(existing_text, encoding="utf-8")
+            except PermissionError as e2:
+                print(
+                    f"[post_install] Warning: cannot back up {config_file}: {e2} — skipping",
+                    file=sys.stderr,
+                )
+                return
             print(
                 f"[post_install] Warning: {config_file} has invalid TOML ({e}), "
                 f"backed up to {backup} and starting fresh",
@@ -290,11 +353,25 @@ def setup_codex_config():
             "# bypassPermissions and OpenCode permission:allow.\n"
         )
         body = "\n\n".join(additions) + "\n" if additions else ""
-        config_file.write_text(header + body, encoding="utf-8")
+        try:
+            config_file.write_text(header + body, encoding="utf-8")
+        except PermissionError as e:
+            print(
+                f"[post_install] Warning: cannot write {config_file}: {e} — skipping",
+                file=sys.stderr,
+            )
+            return
     elif additions:
-        with config_file.open("a", encoding="utf-8") as f:
-            f.write("\n# Added by post_install.py (devcontainer).\n")
-            f.write("\n\n".join(additions) + "\n")
+        try:
+            with config_file.open("a", encoding="utf-8") as f:
+                f.write("\n# Added by post_install.py (devcontainer).\n")
+                f.write("\n\n".join(additions) + "\n")
+        except PermissionError as e:
+            print(
+                f"[post_install] Warning: cannot write {config_file}: {e} — skipping",
+                file=sys.stderr,
+            )
+            return
 
     print(f"[post_install] Codex config written: {config_file}", file=sys.stderr)
 
@@ -486,12 +563,14 @@ def main():
     """Run all post-install configuration."""
     print("[post_install] Starting post-install configuration...", file=sys.stderr)
 
+    # Fix volume ownership first: fresh Docker volumes default to root-owned,
+    # which would make the config writes below fail with PermissionError.
+    fix_directory_ownership()
     setup_onboarding_bypass()
     setup_claude_settings()
     setup_opencode_config()
     setup_codex_config()
     setup_tmux_config()
-    fix_directory_ownership()
     setup_global_gitignore()
 
     print("[post_install] Configuration complete!", file=sys.stderr)
