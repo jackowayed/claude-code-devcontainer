@@ -236,6 +236,50 @@ merge_mounts_from_file() {
   echo "$updated" >"$devcontainer_json"
 }
 
+# Extract port settings from devcontainer.json to a temp file
+# Returns the temp file path, or empty string if no port settings
+extract_ports_to_file() {
+  local devcontainer_json="$1"
+  local temp_file
+
+  [[ -f "$devcontainer_json" ]] || return 0
+
+  temp_file=$(mktemp)
+
+  local preserved_ports
+  preserved_ports=$(jq -c '
+    {appPort, forwardPorts, portsAttributes}
+    | with_entries(select(.value != null))
+    | if length > 0 then . else empty end
+  ' "$devcontainer_json" 2>/dev/null) || true
+
+  if [[ -n "$preserved_ports" ]]; then
+    echo "$preserved_ports" >"$temp_file"
+    echo "$temp_file"
+  else
+    rm -f "$temp_file"
+  fi
+}
+
+# Merge preserved port settings back into devcontainer.json
+merge_ports_from_file() {
+  local devcontainer_json="$1"
+  local ports_file="$2"
+
+  [[ -f "$ports_file" ]] || return 0
+  [[ -s "$ports_file" ]] || return 0
+
+  local preserved_ports
+  preserved_ports=$(cat "$ports_file")
+
+  local updated
+  updated=$(jq --argjson preserved "$preserved_ports" '
+    . * $preserved
+  ' "$devcontainer_json")
+
+  echo "$updated" >"$devcontainer_json"
+}
+
 # Add or update a mount in devcontainer.json
 update_devcontainer_mounts() {
   local devcontainer_json="$1"
@@ -267,6 +311,7 @@ cmd_template() {
   local devcontainer_dir="$target_dir/.devcontainer"
   local devcontainer_json="$devcontainer_dir/devcontainer.json"
   local preserved_mounts=""
+  local preserved_ports=""
 
   if [[ -d "$devcontainer_dir" ]]; then
     log_warn "Devcontainer already exists at $devcontainer_dir"
@@ -281,6 +326,12 @@ cmd_template() {
     preserved_mounts=$(extract_mounts_to_file "$devcontainer_json")
     if [[ -n "$preserved_mounts" ]]; then
       log_info "Preserving custom mounts..."
+    fi
+
+    # Preserve port settings before overwriting
+    preserved_ports=$(extract_ports_to_file "$devcontainer_json")
+    if [[ -n "$preserved_ports" ]]; then
+      log_info "Preserving port settings..."
     fi
   fi
 
@@ -298,6 +349,13 @@ cmd_template() {
     merge_mounts_from_file "$devcontainer_json" "$preserved_mounts"
     rm -f "$preserved_mounts"
     log_info "Custom mounts restored"
+  fi
+
+  # Restore preserved port settings
+  if [[ -n "$preserved_ports" ]]; then
+    merge_ports_from_file "$devcontainer_json" "$preserved_ports"
+    rm -f "$preserved_ports"
+    log_info "Port settings restored"
   fi
 
   strip_git_mounts_if_not_repo "$devcontainer_json" "$target_dir"
