@@ -89,7 +89,19 @@ RUN curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path && \
   ln -sf /home/vscode/.opencode/bin/opencode /home/vscode/.local/bin/opencode && \
   test -x /home/vscode/.local/bin/opencode
 
-# Install Codex CLI via npm (Node is already on PATH via fnm).
+# Install fnm (Fast Node Manager) and Node first — npm is required below
+ARG NODE_VERSION=24
+ENV FNM_DIR="/home/vscode/.fnm"
+RUN curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "$FNM_DIR" --skip-shell && \
+  export PATH="$FNM_DIR:$PATH" && \
+  eval "$(fnm env)" && \
+  fnm install ${NODE_VERSION} && \
+  fnm default ${NODE_VERSION}
+
+# fnm's shell hook is zsh-only, so without this node/npm are missing from bash/sh
+ENV PATH="$FNM_DIR/aliases/default/bin:$PATH"
+
+# Install Codex CLI via npm (Node is on PATH via fnm above).
 # Pinned for reproducible builds; refresh inside the container with
 # `devc upgrade` (npm install -g @openai/codex@latest).
 # renovate: datasource=npm depName=@openai/codex
@@ -102,18 +114,6 @@ RUN uv python install 3.13 --default
 
 # Install ast-grep (AST-based code search)
 RUN uv tool install ast-grep-cli
-
-# Install fnm (Fast Node Manager) and Node
-ARG NODE_VERSION=24
-ENV FNM_DIR="/home/vscode/.fnm"
-RUN curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "$FNM_DIR" --skip-shell && \
-  export PATH="$FNM_DIR:$PATH" && \
-  eval "$(fnm env)" && \
-  fnm install ${NODE_VERSION} && \
-  fnm default ${NODE_VERSION}
-
-# fnm's shell hook is zsh-only, so without this node/npm are missing from bash/sh
-ENV PATH="$FNM_DIR/aliases/default/bin:$PATH"
 
 # Install Oh My Zsh
 # renovate: datasource=github-releases depName=deluan/zsh-in-docker
