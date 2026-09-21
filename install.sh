@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Claude Code + OpenCode + Codex Devcontainer CLI Helper
+# Claude Code + OpenCode + Codex + Pi + OMP Devcontainer CLI Helper
 # Provides the `devc` command for managing devcontainers
 
 # Resolve symlinks to get actual script location
@@ -36,7 +36,7 @@ Commands:
     update              Update devc to the latest version
     template [dir]      Copy devcontainer template to directory (default: current)
     exec <cmd>          Execute a command in the running container
-    upgrade             Upgrade Claude Code, opencode, and codex to latest versions
+    upgrade             Upgrade Claude Code, opencode, codex, pi, and omp to latest versions
     mount <host> <cont> Add a mount to the devcontainer (recreates container)
     sync [project] [--trusted]  Sync Claude sessions from devcontainers to host
     cp <cont> <host>    Copy files/directories from container to host
@@ -51,7 +51,7 @@ Examples:
     devc self-install           # Install devc to PATH
     devc update                 # Update to latest version
     devc exec ls -la            # Run command in container
-    devc upgrade                # Upgrade Claude Code, opencode, and codex to latest
+    devc upgrade                # Upgrade Claude Code, opencode, codex, pi, and omp to latest
     devc mount ~/data /data     # Add mount to container
     devc sync                   # Sync Claude sessions from all devcontainers
     devc sync crypto            # Sync Claude sessions only matching devcontainer
@@ -202,6 +202,8 @@ extract_mounts_to_file() {
         (contains("target=/home/vscode/.local/share/opencode,") | not) and
         (contains("target=/home/vscode/.local/state/opencode,") | not) and
         (contains("target=/home/vscode/.codex,") | not) and
+        (contains("target=/home/vscode/.pi,") | not) and
+        (contains("target=/home/vscode/.omp,") | not) and
         (contains("target=/home/vscode/.config/gh,") | not) and
         (contains("target=/home/vscode/.gitconfig,") | not) and
         (contains("target=/workspace/.devcontainer,") | not)
@@ -460,7 +462,13 @@ cmd_upgrade() {
   log_info "Upgrading codex..."
   devcontainer exec --workspace-folder "$workspace_folder" npm install -g @openai/codex@latest
 
-  log_success "Claude Code, opencode, and codex upgraded"
+  log_info "Upgrading pi..."
+  devcontainer exec --workspace-folder "$workspace_folder" pi update --self
+
+  log_info "Upgrading omp..."
+  devcontainer exec --workspace-folder "$workspace_folder" omp update
+
+  log_success "Claude Code, opencode, codex, pi, and omp upgraded"
 }
 
 cmd_mount() {

@@ -55,10 +55,10 @@ RUN ARCH=$(dpkg --print-architecture) && \
   curl -fsSL "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-${FZF_ARCH}.tar.gz" | tar -xz -C /usr/local/bin
 
 # Create directories and set ownership (combined for fewer layers)
-RUN mkdir -p /commandhistory /workspace /home/vscode/.claude /home/vscode/.config/opencode /home/vscode/.local/share/opencode /home/vscode/.local/state/opencode /home/vscode/.codex /opt && \
+RUN mkdir -p /commandhistory /workspace /home/vscode/.claude /home/vscode/.config/opencode /home/vscode/.local/share/opencode /home/vscode/.local/state/opencode /home/vscode/.codex /home/vscode/.pi /home/vscode/.omp /opt && \
   touch /commandhistory/.bash_history && \
   touch /commandhistory/.zsh_history && \
-  chown -R vscode:vscode /commandhistory /workspace /home/vscode/.claude /home/vscode/.config /home/vscode/.local /home/vscode/.codex /opt
+  chown -R vscode:vscode /commandhistory /workspace /home/vscode/.claude /home/vscode/.config /home/vscode/.local /home/vscode/.codex /home/vscode/.pi /home/vscode/.omp /opt
 
 # Set environment variables
 ENV DEVCONTAINER=true
@@ -108,6 +108,24 @@ ENV PATH="$FNM_DIR/aliases/default/bin:$PATH"
 ARG CODEX_VERSION=0.154.0
 RUN npm install -g "@openai/codex@${CODEX_VERSION}" && \
   codex --version
+
+# Install Pi coding agent via npm (Node is on PATH via fnm above).
+# Pinned for reproducible builds; refresh inside the container with
+# `devc upgrade` (pi update --self).
+# renovate: datasource=npm depName=@earendil-works/pi-coding-agent
+ARG PI_VERSION=0.86.1
+RUN npm install -g --ignore-scripts "@earendil-works/pi-coding-agent@${PI_VERSION}" && \
+  pi --version
+
+# Install OMP (oh-my-pi, a Pi fork) as a prebuilt standalone binary.
+# The install script falls back to the binary when bun is absent, so no
+# Bun runtime is needed. Pinned for reproducible builds; refresh inside
+# the container with `devc upgrade` (omp update handles binary installs
+# in place since 17.1.4).
+# renovate: datasource=github-releases depName=can1357/oh-my-pi
+ARG OMP_VERSION=18.2.7
+RUN curl -fsSL https://omp.sh/install | sh -s -- --binary --ref "v${OMP_VERSION}" && \
+  omp --version
 
 # Install Python 3.13 via uv (fast binary download, not source compilation)
 RUN uv python install 3.13 --default

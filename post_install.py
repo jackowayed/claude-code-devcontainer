@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Post-install configuration for Claude Code + OpenCode + Codex devcontainer.
+"""Post-install configuration for Claude Code + OpenCode + Codex + Pi + OMP devcontainer.
 
 Runs on container creation to set up:
 - Onboarding bypass (when CLAUDE_CODE_OAUTH_TOKEN is set)
 - Claude settings (bypassPermissions mode)
 - OpenCode defaults (unrestricted permissions, no autoupdate/share)
 - Codex defaults (unrestricted approvals/sandbox, file-based auth)
+- Pi agent dir (Pi has no permission gates by design; the container
+  provides isolation, so no sandbox config is needed)
+- OMP defaults (unrestricted approval mode, merging with existing config)
 - Tmux configuration (200k history, mouse support)
 - Directory ownership fixes for mounted volumes
 """
@@ -376,6 +379,123 @@ def setup_codex_config():
     print(f"[post_install] Codex config written: {config_file}", file=sys.stderr)
 
 
+def setup_pi_config():
+    """Ensure Pi's agent dir exists and is writable.
+
+    Pi has no built-in permission system for restricting filesystem,
+    process, or network access — it runs with the permissions of the
+    invoking user. That matches this container's model (isolation comes
+    from the container, mirroring Claude bypassPermissions and OpenCode
+    permission:allow), so no sandbox config needs to be written.
+
+    Credentials from ``pi`` ``/login`` (``auth.json``) and sessions
+    (``sessions/``) live under ``~/.pi/agent`` inside the per-project
+    ``pi`` volume, so they survive rebuilds.
+    """
+    pi_dir = Path.home() / ".pi"
+    if not _ensure_dir_writable(pi_dir):
+        return
+    print(f"[post_install] Pi dir ready: {pi_dir}", file=sys.stderr)
+
+
+def setup_omp_config():
+    """Configure OMP (oh-my-pi) with sandbox-friendly defaults.
+
+    Mirrors the Claude bypassPermissions setup: auto-approve all tool
+    tiers (``tools.approvalMode: yolo``) since the container already
+    provides filesystem isolation. ``yolo`` is also the upstream default,
+    so this only pins the value explicitly in case defaults change.
+
+    Merges with any existing user config instead of overwriting it: an
+    explicitly configured ``approvalMode`` is left untouched. Only the
+    standard library is used (no YAML dependency), so the merge is a
+    careful text edit — ``approvalMode`` as a top-level ``tools:`` child
+    or an appended ``tools:`` block. Credentials from ``omp`` ``/login``
+    live in the ``agent.db`` vault under ``~/.omp/agent`` inside the
+    per-project ``omp`` volume, so they survive rebuilds.
+    """
+    import re
+
+    omp_dir = Path.home() / ".omp"
+    if not _ensure_dir_writable(omp_dir):
+        return
+    omp_agent_dir = omp_dir / "agent"
+    if not _ensure_dir_writable(omp_agent_dir):
+        return
+
+    # Canonical write target is config.yml; an existing config.yaml is
+    # loaded by omp and updated in place.
+    config_file = omp_agent_dir / "config.yml"
+    legacy_file = omp_agent_dir / "config.yaml"
+    if not config_file.exists() and legacy_file.exists():
+        config_file = legacy_file
+
+    existing_text = ""
+    if config_file.exists():
+        try:
+            existing_text = config_file.read_text(encoding="utf-8")
+        except PermissionError as e:
+            print(
+                f"[post_install] Warning: cannot read {config_file}: {e} — skipping",
+                file=sys.stderr,
+            )
+            return
+
+    if re.search(r"(?m)^\s*approvalMode\s*:", existing_text):
+        print(
+            "[post_install] OMP approvalMode already configured, leaving it untouched",
+            file=sys.stderr,
+        )
+        return
+
+    header = (
+        "# Managed by post_install.py (devcontainer).\n"
+        "# Unrestricted default: the container provides isolation, so all\n"
+        "# tool tiers are auto-approved. Mirrors Claude bypassPermissions,\n"
+        "# OpenCode permission:allow, and Codex approval never.\n"
+    )
+    if not existing_text.strip():
+        try:
+            config_file.write_text(
+                header + "\ntools:\n  approvalMode: yolo\n", encoding="utf-8"
+            )
+        except PermissionError as e:
+            print(
+                f"[post_install] Warning: cannot write {config_file}: {e} — skipping",
+                file=sys.stderr,
+            )
+            return
+    elif re.search(r"(?m)^tools\s*:", existing_text):
+        lines = existing_text.splitlines(keepends=True)
+        for i, line in enumerate(lines):
+            if re.match(r"^tools\s*:", line):
+                lines.insert(i + 1, "  approvalMode: yolo\n")
+                break
+        try:
+            config_file.write_text("".join(lines), encoding="utf-8")
+        except PermissionError as e:
+            print(
+                f"[post_install] Warning: cannot write {config_file}: {e} — skipping",
+                file=sys.stderr,
+            )
+            return
+    else:
+        addition = "\n# Added by post_install.py (devcontainer).\ntools:\n  approvalMode: yolo\n"
+        try:
+            with config_file.open("a", encoding="utf-8") as f:
+                if not existing_text.endswith("\n"):
+                    f.write("\n")
+                f.write(addition)
+        except PermissionError as e:
+            print(
+                f"[post_install] Warning: cannot write {config_file}: {e} — skipping",
+                file=sys.stderr,
+            )
+            return
+
+    print(f"[post_install] OMP config written: {config_file}", file=sys.stderr)
+
+
 def setup_tmux_config():
     """Configure tmux with 200k history, mouse support, and vi keys."""
     tmux_conf = Path.home() / ".tmux.conf"
@@ -434,6 +554,8 @@ def fix_directory_ownership():
         Path.home() / ".local" / "share" / "opencode",
         Path.home() / ".local" / "state" / "opencode",
         Path.home() / ".codex",
+        Path.home() / ".pi",
+        Path.home() / ".omp",
         Path("/commandhistory"),
         Path.home() / ".config" / "gh",
     ]
@@ -570,6 +692,8 @@ def main():
     setup_claude_settings()
     setup_opencode_config()
     setup_codex_config()
+    setup_pi_config()
+    setup_omp_config()
     setup_tmux_config()
     setup_global_gitignore()
 

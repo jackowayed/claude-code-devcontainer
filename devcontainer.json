@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
-  "name": "Claude Code + OpenCode + Codex Sandbox",
+  "name": "Claude Code + OpenCode + Codex + Pi + OMP Sandbox",
   "build": {
     "dockerfile": "Dockerfile",
     "args": {
@@ -21,7 +21,8 @@
       "extensions": [
         "anthropic.claude-code",
         "sst-dev.opencode",
-        "openai.chatgpt"
+        "openai.chatgpt",
+        "pi0.pi-vscode"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "zsh",
@@ -48,6 +49,8 @@
     "source=devc-${localWorkspaceFolderBasename}-opencode-data-${devcontainerId},target=/home/vscode/.local/share/opencode,type=volume",
     "source=devc-${localWorkspaceFolderBasename}-opencode-state-${devcontainerId},target=/home/vscode/.local/state/opencode,type=volume",
     "source=devc-${localWorkspaceFolderBasename}-codex-${devcontainerId},target=/home/vscode/.codex,type=volume",
+    "source=devc-${localWorkspaceFolderBasename}-pi-${devcontainerId},target=/home/vscode/.pi,type=volume",
+    "source=devc-${localWorkspaceFolderBasename}-omp-${devcontainerId},target=/home/vscode/.omp,type=volume",
     "source=devc-${localWorkspaceFolderBasename}-gh-${devcontainerId},target=/home/vscode/.config/gh,type=volume",
     "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,readonly",
     "source=${localWorkspaceFolder}/.devcontainer,target=/workspace/.devcontainer,type=bind,readonly",
@@ -80,7 +83,16 @@
     "OPENCODE_SERVER_PASSWORD": "${localEnv:OPENCODE_SERVER_PASSWORD:}",
     "OPENCODE_SERVER_USERNAME": "${localEnv:OPENCODE_SERVER_USERNAME:}",
     "CODEX_API_KEY": "${localEnv:CODEX_API_KEY:}",
-    "CODEX_ACCESS_TOKEN": "${localEnv:CODEX_ACCESS_TOKEN:}"
+    "CODEX_ACCESS_TOKEN": "${localEnv:CODEX_ACCESS_TOKEN:}",
+    "XAI_API_KEY": "${localEnv:XAI_API_KEY:}",
+    "GROQ_API_KEY": "${localEnv:GROQ_API_KEY:}",
+    "DEEPSEEK_API_KEY": "${localEnv:DEEPSEEK_API_KEY:}",
+    "MISTRAL_API_KEY": "${localEnv:MISTRAL_API_KEY:}",
+    "CEREBRAS_API_KEY": "${localEnv:CEREBRAS_API_KEY:}",
+    "TOGETHER_API_KEY": "${localEnv:TOGETHER_API_KEY:}",
+    "FIREWORKS_API_KEY": "${localEnv:FIREWORKS_API_KEY:}",
+    "NVIDIA_API_KEY": "${localEnv:NVIDIA_API_KEY:}",
+    "HF_TOKEN": "${localEnv:HF_TOKEN:}"
   },
   "initializeCommand": "test -f \"$HOME/.gitconfig\" || touch \"$HOME/.gitconfig\"",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",

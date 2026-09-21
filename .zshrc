@@ -1,7 +1,7 @@
 # shellcheck shell=bash
-# Zsh configuration for Claude Code + OpenCode + Codex devcontainer
+# Zsh configuration for Claude Code + OpenCode + Codex + Pi + OMP devcontainer
 
-# Add Claude Code, opencode, and codex to PATH
+# Add Claude Code, opencode, codex, pi, and omp to PATH
 export PATH="$HOME/.local/bin:$PATH"
 
 # fnm (Fast Node Manager)
@@ -35,6 +35,9 @@ alias sg=ast-grep
 alias claude-yolo='claude --dangerously-skip-permissions'
 alias opencode-yolo='opencode --auto'
 alias codex-yolo='codex --dangerously-bypass-approvals-and-sandbox'
+alias omp-yolo='omp --yolo'
+# No pi alias needed: pi has no permission gates by design, so plain `pi`
+# is already unrestricted (the container provides isolation).
 alias ll='ls -lah --color=auto'
 alias la='ls -A --color=auto'
 alias l='ls -CF --color=auto'

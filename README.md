@@ -1,16 +1,16 @@
-# Claude Code + OpenCode + Codex in a devcontainer
+# Claude Code + OpenCode + Codex + Pi + OMP in a devcontainer
 
-A containerized development environment for running Claude Code with `bypassPermissions` enabled, opencode with unrestricted permissions, and Codex with approvals/sandboxing disabled. Built at [Trail of Bits](https://www.trailofbits.com/) for security audit workflows.
+A containerized development environment for running Claude Code with `bypassPermissions` enabled, opencode with unrestricted permissions, Codex with approvals/sandboxing disabled, Pi (no permission gates by design), and OMP (oh-my-pi) in yolo mode. Built at [Trail of Bits](https://www.trailofbits.com/) for security audit workflows.
 
 ## Why Use This?
 
-Running Claude with `bypassPermissions` (or opencode / Codex unrestricted) on your host machine is risky—it can execute any command without confirmation. This devcontainer provides **filesystem isolation**, so an unrestricted agent reaches only your project directory and a disposable container, not the rest of your host.
+Running Claude with `bypassPermissions` (or opencode / Codex / Pi / OMP unrestricted) on your host machine is risky—it can execute any command without confirmation. This devcontainer provides **filesystem isolation**, so an unrestricted agent reaches only your project directory and a disposable container, not the rest of your host.
 
 **Designed for:**
 
 - **Security audits**: Review client code without exposing your host
 - **Untrusted repositories**: Explore unknown codebases safely
-- **Experimental work**: Let Claude, opencode, or Codex modify code freely in isolation
+- **Experimental work**: Let Claude, opencode, Codex, Pi, or OMP modify code freely in isolation
 - **Multi-repo engagements**: Work on multiple related repositories
 
 ## Prerequisites
@@ -113,7 +113,7 @@ devc shell      # Opens shell in container
 git clone <client-repo-1>
 git clone <client-repo-2>
 cd client-repo-1
-claude            # Ready to work (or: opencode, codex)
+claude            # Ready to work (or: opencode, codex, pi, omp)
 ```
 
 ## Token-Based Auth (Headless)
@@ -161,6 +161,36 @@ Alternatively, run `codex login` inside the container (ChatGPT OAuth or API key)
 
 Codex runs unrestricted by default here (`approval_policy = "never"`, `sandbox_mode = "danger-full-access"`, network enabled, `/workspace` pre-trusted) since the container provides isolation — matching upstream guidance to use `danger-full-access` inside Docker. If you prefer guardrails, edit `~/.codex/config.toml` in the container or pass flags per run (e.g. `codex --sandbox workspace-write`).
 
+### pi auth
+
+Pi needs no onboarding handshake. It picks up provider keys forwarded via `remoteEnv`:
+
+- `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY`, `OPENROUTER_API_KEY`, `OPENCODE_API_KEY`
+- `XAI_API_KEY`, `GROQ_API_KEY`, `DEEPSEEK_API_KEY`, `MISTRAL_API_KEY`, `CEREBRAS_API_KEY`, `TOGETHER_API_KEY`, `FIREWORKS_API_KEY`, `NVIDIA_API_KEY`, `HF_TOKEN`
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+export OPENAI_API_KEY=sk-...
+devc rebuild
+```
+
+Alternatively, run `pi` then `/login` inside the container (OAuth subscriptions such as ChatGPT, Claude Pro/Max, GitHub Copilot, xAI, or API keys). Credentials persist as `~/.pi/agent/auth.json` (mode `0600`) in the per-project `pi` volume (`~/.pi`) and survive `devc rebuild`. Entries in `auth.json` take priority over environment variables.
+
+Pi has no permission gates by design — it runs with the invoking user's permissions, so plain `pi` is already unrestricted and the container provides the isolation. No `pi-yolo` alias needed.
+
+### omp auth
+
+OMP (oh-my-pi, a Pi fork) needs no onboarding handshake. It picks up the same provider keys forwarded via `remoteEnv` as Pi (see above).
+
+```bash
+export OPENAI_API_KEY=sk-...
+devc rebuild
+```
+
+Alternatively, run `omp` then `/login` inside the container (OAuth or API key). Credentials persist in the `agent.db` vault under `~/.omp/agent` in the per-project `omp` volume (`~/.omp`) and survive `devc rebuild`.
+
+OMP runs unrestricted by default here (`tools.approvalMode: yolo` in `~/.omp/agent/config.yml`, pinned by `post_install.py` — this is also the upstream default). If you prefer guardrails, edit the config in the container (`omp config set tools.approvalMode write`) or pass flags per run (`omp --approval-mode write`, `omp --auto-approve` / `omp --yolo` to force yolo for one session; `omp-yolo` alias provided).
+
 ### opencode server
 
 `opencode serve` (headless HTTP API + OpenAPI spec) starts automatically on every container start via `postStartCommand` and listens on `0.0.0.0:4096`. Port `4096` is forwarded to the host (`forwardPorts` + `portsAttributes` in `devcontainer.json`), so from the host or the IDE you can reach:
@@ -186,7 +216,7 @@ devc destroy [-f]   Remove container, volumes, and image for current project
 devc down           Stop the container
 devc shell          Open zsh shell in container
 devc exec CMD       Execute command inside the container
-devc upgrade        Upgrade Claude Code, opencode, and codex in the container
+devc upgrade        Upgrade Claude Code, opencode, codex, pi, and omp in the container
 devc mount SRC DST  Add a bind mount (host → container)
 devc sync [project] [--trusted] Sync Claude Code sessions from devcontainers to host
 devc cp SRC DST     Copy a path from the container to the host
@@ -212,7 +242,7 @@ Devcontainers are auto-discovered via Docker labels — no need to know containe
 
 > **Security note:** this copies container-authored data onto your host, so it prompts first (`--trusted` skips it). Only `*.jsonl` logs are copied, always under a `-devcontainer-<project>` key, so a container cannot plant files elsewhere in `~/.claude/projects/`. The transcripts are still container-authored text that a later host session will read.
 
-opencode sessions need no sync: they persist in the per-project `opencode-data` volume (`~/.local/share/opencode`) and survive `devc rebuild`. Codex sessions/auth persist the same way in the per-project `codex` volume (`~/.codex`). Use `devc destroy` to remove them with the project.
+opencode sessions need no sync: they persist in the per-project `opencode-data` volume (`~/.local/share/opencode`) and survive `devc rebuild`. Codex sessions/auth persist the same way in the per-project `codex` volume (`~/.codex`). Pi sessions/auth (`~/.pi/agent/sessions/`, `~/.pi/agent/auth.json`) and OMP sessions/vault (`~/.omp/agent/sessions/`, `~/.omp/agent/agent.db`) persist in the per-project `pi` (`~/.pi`) and `omp` (`~/.omp`) volumes. Use `devc destroy` to remove them with the project.
 
 ## File Sharing
 
@@ -245,7 +275,7 @@ By default, containers have full outbound network access. For stricter security,
 - Auditing software with telemetry or phone-home behavior
 - Maximum isolation for highly sensitive reviews
 
-### Example: Claude + OpenCode + Codex + GitHub + Package Registries
+### Example: Claude + OpenCode + Codex + Pi + OMP + GitHub + Package Registries
 
 Run this inside the container (`devc shell`). The allowlist lives in an `ipset` that the
 `iptables` rule references by name, so refreshing it does not mean re-adding rules.
@@ -263,7 +293,8 @@ done
 sudo ipset create allowed-egress hash:ip -exist
 for host in api.anthropic.com github.com raw.githubusercontent.com \
             registry.npmjs.org pypi.org files.pythonhosted.org \
-            opencode.ai api.openai.com api.gemini.google.com openrouter.ai models.dev; do
+            opencode.ai api.openai.com api.gemini.google.com openrouter.ai models.dev \
+            pi.dev omp.sh; do
   for ip in $(getent ahostsv4 "$host" | awk '{print $1}' | sort -u); do
     sudo ipset add allowed-egress "$ip" -exist
   done
@@ -287,7 +318,7 @@ sudo iptables -A OUTPUT -j DROP
 ## Threat Model
 
 **Protects against:**
-- Claude, opencode, or Codex running unrestricted during a session.
+- Claude, opencode, Codex, Pi, or OMP running unrestricted during a session.
 - Direct access to your SSH key material and other credentials
 - Unrestricted, direct access to the whole filesystem
 - Cross-engagement leakage
@@ -298,7 +329,7 @@ sudo iptables -A OUTPUT -j DROP
 - **Deferred escape.** Container-planted code can get executed on the host, when the user performs some action on the host. Planting files under shared `.git` folder is an example escape path.
 - **VS Code "Reopen in Container".** The command runs an extension host *inside* the container wired to your editor over RPC, and container code can drive host-only editor commands (`terminal.newLocal` then `sendSequence`) to run shell commands on your host. This is [Microsoft's design](https://github.com/microsoft/vscode-remote-release/issues/6608#issuecomment-1112960548), not a bug here ([how it works](https://blog.theredguild.org/leveraging-vscode-internals-to-escape-containers/)).
 - **Network rules overwrite.** Container has `NET_ADMIN` and passwordless sudo, its user can change the iptables rules dynamically.
-- **Exfiltration of in-container credentials.** Claude, opencode/provider, Codex, GitHub, and other tokens provided to container are simply accessible inside it.
+- **Exfiltration of in-container credentials.** Claude, opencode/provider, Codex, Pi/OMP provider, GitHub, and other tokens provided to container are simply accessible inside it.
 
 **Also not isolated:** forwarded SSH agent (container code can authenticate as you; keys stay on the host), `~/.gitconfig` (read-only). The Docker socket is not mounted.
 
@@ -309,13 +340,13 @@ sudo iptables -A OUTPUT -j DROP
 | Base | Ubuntu 24.04, Node.js 24, Python 3.13 + uv, zsh |
 | User | `vscode` (passwordless sudo), working dir `/workspace` |
 | Tools | `rg`, `fd`, `tmux`, `fzf`, `delta`, `iptables`, `ipset` |
-| Volumes (survive rebuilds) | Command history (`/commandhistory`), Claude config (`~/.claude`), OpenCode config (`~/.config/opencode`), OpenCode data/auth (`~/.local/share/opencode`), OpenCode TUI state (`~/.local/state/opencode`), Codex config/auth/sessions (`~/.codex`), GitHub CLI auth (`~/.config/gh`) |
+| Volumes (survive rebuilds) | Command history (`/commandhistory`), Claude config (`~/.claude`), OpenCode config (`~/.config/opencode`), OpenCode data/auth (`~/.local/share/opencode`), OpenCode TUI state (`~/.local/state/opencode`), Codex config/auth/sessions (`~/.codex`), Pi config/auth/sessions (`~/.pi`), OMP config/vault/sessions (`~/.omp`), GitHub CLI auth (`~/.config/gh`) |
 | Host mounts | `~/.gitconfig`, `.devcontainer/`, `.git/config`, `.git/hooks/` (all read-only) |
-| Auto-configured | `bypassPermissions` mode (via `post_install.py`), opencode defaults (`permission: allow` except `.devcontainer/`, `autoupdate: false`, `share: disabled`), Codex defaults (`approval_policy: never`, `sandbox_mode: danger-full-access`, file-based auth, `/workspace` pre-trusted), skills from [anthropics/skills](https://github.com/anthropics/skills) + [trailofbits/skills](https://github.com/trailofbits/skills) + [trailofbits/skills-curated](https://github.com/trailofbits/skills-curated), git-delta |
+| Auto-configured | `bypassPermissions` mode (via `post_install.py`), opencode defaults (`permission: allow` except `.devcontainer/`, `autoupdate: false`, `share: disabled`), Codex defaults (`approval_policy: never`, `sandbox_mode: danger-full-access`, file-based auth, `/workspace` pre-trusted), Pi defaults (none needed — no permission gates by design, container provides isolation), OMP defaults (`tools.approvalMode: yolo`), skills from [anthropics/skills](https://github.com/anthropics/skills) + [trailofbits/skills](https://github.com/trailofbits/skills) + [trailofbits/skills-curated](https://github.com/trailofbits/skills-curated), git-delta |
 
-Volumes are stored outside the container, so your shell history, Claude settings, opencode settings/auth, Codex config/auth/sessions, and `gh` login persist even after `devc rebuild`. Host `~/.gitconfig` is mounted read-only for git identity.
+Volumes are stored outside the container, so your shell history, Claude settings, opencode settings/auth, Codex config/auth/sessions, Pi config/auth/sessions, OMP config/vault/sessions, and `gh` login persist even after `devc rebuild`. Host `~/.gitconfig` is mounted read-only for git identity.
 
-The container ships common development tooling so you can do all your work inside it, not just run Claude, opencode, or Codex. The intended workflow is: clone a repository, start the container, and stay in it. If you need extra runtimes, add them to the Dockerfile for repeat use or install them ad-hoc with `devc exec`.
+The container ships common development tooling so you can do all your work inside it, not just run Claude, opencode, Codex, Pi, or OMP. The intended workflow is: clone a repository, start the container, and stay in it. If you need extra runtimes, add them to the Dockerfile for repeat use or install them ad-hoc with `devc exec`.
 
 ## Troubleshooting
 
