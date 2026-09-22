@@ -110,25 +110,62 @@ has_devcontainer_config() {
   return 1
 }
 
+# Walk upwards from start_dir looking for a devcontainer config.
+# Prints the first ancestor (starting with itself) containing one.
+# Returns 0 if found, 1 otherwise.
+find_devcontainer_root() {
+  local dir="$1"
+  while true; do
+    if has_devcontainer_config "$dir"; then
+      echo "$dir"
+      return 0
+    fi
+    local parent_dir
+    parent_dir="$(dirname "$dir")"
+    if [[ "$parent_dir" == "$dir" ]]; then
+      return 1
+    fi
+    dir="$parent_dir"
+  done
+}
+
 # Resolve the workspace folder for `shell`/`exec` when invoked from a
-# subdirectory. If pwd has no devcontainer config, fall back one level up.
-# Sets globals: RESOLVED_WORKSPACE (host path) and RESOLVED_RELDIR
-# (basename of the original dir relative to the workspace, "" if none).
+# subdirectory. Walks up an arbitrary number of parents to find the
+# nearest devcontainer config. Sets globals: RESOLVED_WORKSPACE (host
+# path) and RESOLVED_RELDIR (path of the original dir relative to the
+# workspace, "" if the workspace is the original dir or none was found).
 resolve_shell_exec_workspace() {
   local orig_pwd
   orig_pwd="$(pwd)"
-  local parent_dir
-  parent_dir="$(dirname "$orig_pwd")"
-
-  if has_devcontainer_config "$orig_pwd"; then
-    RESOLVED_WORKSPACE="$orig_pwd"
-    RESOLVED_RELDIR=""
-  elif [[ "$parent_dir" != "$orig_pwd" ]] && has_devcontainer_config "$parent_dir"; then
-    RESOLVED_WORKSPACE="$parent_dir"
-    RESOLVED_RELDIR="$(basename "$orig_pwd")"
+  local found
+  if found="$(find_devcontainer_root "$orig_pwd")"; then
+    RESOLVED_WORKSPACE="$found"
+    if [[ "$found" == "$orig_pwd" ]]; then
+      RESOLVED_RELDIR=""
+    elif [[ "$found" == "/" ]]; then
+      RESOLVED_RELDIR="${orig_pwd#/}"
+    else
+      RESOLVED_RELDIR="${orig_pwd#"$found"/}"
+    fi
   else
     RESOLVED_WORKSPACE="$orig_pwd"
     RESOLVED_RELDIR=""
+  fi
+}
+
+# Resolve the workspace folder for `up` when invoked from a subdirectory
+# without its own devcontainer config. Walks up an arbitrary number of
+# parents; an explicit argument always wins over the upward search.
+resolve_up_workspace() {
+  if [[ -n "${1:-}" ]]; then
+    get_workspace_folder "$1"
+    return
+  fi
+  local found
+  if found="$(find_devcontainer_root "$(pwd)")"; then
+    echo "$found"
+  else
+    get_workspace_folder
   fi
 }
 
@@ -367,12 +404,15 @@ cmd_template() {
 
 cmd_up() {
   local workspace_folder
-  workspace_folder="$(get_workspace_folder "${1:-}")"
+  workspace_folder="$(resolve_up_workspace "${1:-}")"
 
   check_devcontainer_cli
   check_no_sys_admin "$workspace_folder"
   strip_git_mounts_if_not_repo \
     "$workspace_folder/.devcontainer/devcontainer.json" "$workspace_folder"
+  if [[ -z "${1:-}" && "$workspace_folder" != "$(pwd)" ]]; then
+    log_info "No devcontainer config here, using parent $workspace_folder..."
+  fi
   log_info "Starting devcontainer in $workspace_folder..."
 
   devcontainer up --workspace-folder "$workspace_folder"
