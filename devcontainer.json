@@ -4,8 +4,7 @@
   "build": {
     "dockerfile": "Dockerfile",
     "args": {
-      "TZ": "${localEnv:TZ:UTC}",
-      "PACKAGE_CACHE_DATE": "${localEnv:DEVC_PACKAGE_CACHE_DATE:manual}"
+      "TZ": "${localEnv:TZ:UTC}"
     }
   },
   "features": {
@@ -71,5 +70,5 @@
   "initializeCommand": "test -f \"$HOME/.gitconfig\" || touch \"$HOME/.gitconfig\"",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
-  "postCreateCommand": "uv run --no-project /opt/post_install.py"
+  "postCreateCommand": "sudo apt-get update && sudo env DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && uv run --no-project /opt/post_install.py"
 }

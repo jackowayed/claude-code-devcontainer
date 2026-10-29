@@ -307,12 +307,10 @@ uv run --with requests py.py  # Ad-hoc dependency
 Build the image manually:
 
 ```bash
-DEVC_PACKAGE_CACHE_DATE="$(date -u +%F)" devcontainer build --workspace-folder .
+devcontainer build --workspace-folder .
 ```
 
-Builds upgrade installed Ubuntu packages and install the latest available CA certificates from the configured repositories. `devc` supplies the current UTC date as a build argument: builds on the same day reuse Docker's cache, while the first build on a new day refreshes packages and subsequent layers. This is a calendar-day cache, not a rolling 24-hour TTL, and does not update running containers automatically.
-
-For direct CLI builds, supply `DEVC_PACKAGE_CACHE_DATE` as shown above. For VS Code builds, export it before launching VS Code so it is inherited, or use **Dev Containers: Rebuild Container Without Cache** to force fresh packages. Without the variable, direct CLI and VS Code builds use a fixed cache key.
+Builds reuse Docker's cache normally. When a container is created, `postCreateCommand` updates the Ubuntu package index and upgrades installed packages, including `ca-certificates`, before running the existing setup script. Each new container installs its own updates; restarting an existing container does not rerun them. If an update fails, setup stops and reports the failure. Build-time downloads still use the image's CA bundle.
 
 Test the container:
 

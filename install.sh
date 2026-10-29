@@ -261,8 +261,7 @@ cmd_up() {
     "$workspace_folder/.devcontainer/devcontainer.json" "$workspace_folder"
   log_info "Starting devcontainer in $workspace_folder..."
 
-  DEVC_PACKAGE_CACHE_DATE="$(date -u +%F)" \
-    devcontainer up --workspace-folder "$workspace_folder"
+  devcontainer up --workspace-folder "$workspace_folder"
   log_success "Devcontainer started"
 }
 
@@ -276,8 +275,7 @@ cmd_rebuild() {
     "$workspace_folder/.devcontainer/devcontainer.json" "$workspace_folder"
   log_info "Rebuilding devcontainer in $workspace_folder..."
 
-  DEVC_PACKAGE_CACHE_DATE="$(date -u +%F)" \
-    devcontainer up --workspace-folder "$workspace_folder" --remove-existing-container
+  devcontainer up --workspace-folder "$workspace_folder" --remove-existing-container
   log_success "Devcontainer rebuilt"
 }
 
@@ -364,8 +362,7 @@ cmd_mount() {
   update_devcontainer_mounts "$devcontainer_json" "$host_path" "$container_path" "$readonly"
 
   log_info "Recreating container with new mount..."
-  DEVC_PACKAGE_CACHE_DATE="$(date -u +%F)" \
-    devcontainer up --workspace-folder "$workspace_folder" --remove-existing-container
+  devcontainer up --workspace-folder "$workspace_folder" --remove-existing-container
 
   log_success "Mount added: $host_path → $container_path"
 }
