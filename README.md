@@ -307,8 +307,10 @@ uv run --with requests py.py  # Ad-hoc dependency
 Build the image manually:
 
 ```bash
-devcontainer build --workspace-folder .
+devcontainer build --workspace-folder . --no-cache
 ```
+
+Builds upgrade installed Ubuntu packages and install the latest available CA certificates from the configured repositories. `devc rebuild` disables the build cache so these updates run again. In VS Code, use **Dev Containers: Rebuild Container Without Cache** to fetch package updates.
 
 Test the container:
 

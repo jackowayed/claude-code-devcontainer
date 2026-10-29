@@ -8,8 +8,9 @@ ENV TZ="$TZ"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Install additional system packages (base image already includes git, curl, sudo, etc.)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Upgrade base image packages, including CA trust, before installing additional tools.
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+  ca-certificates \
   # Sandboxing support for Claude Code
   bubblewrap \
   socat \

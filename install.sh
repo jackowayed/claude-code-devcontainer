@@ -275,7 +275,7 @@ cmd_rebuild() {
     "$workspace_folder/.devcontainer/devcontainer.json" "$workspace_folder"
   log_info "Rebuilding devcontainer in $workspace_folder..."
 
-  devcontainer up --workspace-folder "$workspace_folder" --remove-existing-container
+  devcontainer up --workspace-folder "$workspace_folder" --remove-existing-container --build-no-cache
   log_success "Devcontainer rebuilt"
 }
 
