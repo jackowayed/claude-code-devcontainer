@@ -4,7 +4,8 @@
   "build": {
     "dockerfile": "Dockerfile",
     "args": {
-      "TZ": "${localEnv:TZ:UTC}"
+      "TZ": "${localEnv:TZ:UTC}",
+      "PACKAGE_CACHE_DATE": "${localEnv:DEVC_PACKAGE_CACHE_DATE:manual}"
     }
   },
   "features": {

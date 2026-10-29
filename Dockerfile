@@ -9,6 +9,8 @@ ENV TZ="$TZ"
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Upgrade base image packages, including CA trust, before installing additional tools.
+# devc supplies the UTC date so builds on the same day share cached layers.
+ARG PACKAGE_CACHE_DATE=manual
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
   ca-certificates \
   # Sandboxing support for Claude Code
